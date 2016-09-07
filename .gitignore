@@ -1,4 +1,5 @@
 .idea/
+.vagrant/
 Cargo.lock
 *.iml
 
