@@ -1,7 +1,13 @@
 [package]
 name = "linear_systems"
 version = "0.1.0"
-authors = ["amcinnes"]
+authors = ["Allan McInnes <allan.mcinnes@acm.org>"]
+repository = "https://github.com/allanmcinnes/rust_linear_systems.git"
+homepage = "https://github.com/allanmcinnes/rust_linear_systems.git"
+license = "MIT"
+readme = "README.md"
+documentation = "TBD"
+description = "Playing around with discrete-time linear systems in Rust."
 
 [dependencies]
 gnuplot = "0.0.21"
