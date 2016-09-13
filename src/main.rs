@@ -1,19 +1,49 @@
 use std::collections::VecDeque;
+use std::collections::vec_deque::Iter;
 
 type Value = f32;
 
-// TODO: move delay line into its own structure
+/// A finite-length queue of signal values
+struct DelayLine {
+    size : usize,
+    buffer: VecDeque<Option<Value>>
+}
+
+impl DelayLine {
+    /// Construct a delay line of `size` values
+    fn new(size: usize) -> DelayLine {
+        DelayLine { size: size, buffer: VecDeque::new() }
+    }
+
+    /// Insert a new value into the delay line
+    fn push(&mut self, value: Option<Value>) {
+        self.buffer.push_front(value);
+        if self.buffer.len() > self.size {
+            self.buffer.pop_back();
+        }
+    }
+
+    /// Returns an iterator over the delay line
+    fn iter(&self) -> Iter<Option<Value>> {
+        self.buffer.iter()
+    }
+
+    /// Returns true if the delay line is empty (either not yet
+    /// filled, or contains only None)
+    fn is_empty(&self) -> bool {
+        // TODO: optimize to ! (any != None) ?
+        self.buffer.is_empty() || self.buffer.iter().all(|&i| i == None)
+    }
+}
 
 /// Contains the coefficients and data structures necessary to realize
 /// an FIR filter.
 struct Fir<'a> {
     /// Filter coefficients (impulse response)
     h : Vec<Value>,
-    /// Filter order (number of coefficients)
-    order : usize,
     /// Filter delay line--stores previous input values for use in calculating the
     /// current output
-    delay: VecDeque<Value>,
+    delay: DelayLine,
     /// Filter input signal
     input : &'a mut Iterator<Item=Value> // Must be mutable to be able to call `next`
 }
@@ -23,14 +53,17 @@ impl<'a> Fir<'a> {
     /// signal `signal`
     fn new<Signal: Iterator<Item=Value>>(h : Vec<Value>, signal: &'a mut Signal) -> Fir<'a> {
         let size = h.len();
-        Fir { h: h, order: size, delay: VecDeque::new(), input: signal }
+        Fir { h: h, delay: DelayLine::new(size), input: signal }
     }
 
     /// Computes a filter output for a given state and coefficient set
     fn filter<H, D>(h: H, d: D) -> Value
-        where H: Iterator<Item=&'a Value>, D: Iterator<Item=&'a Value>  {
+        where H: Iterator<Item=&'a Value>, D: Iterator<Item=&'a Option<Value>>  {
         let zipped = d.zip(h);
-        zipped.fold(0 as Value, |y, (x, h)| y + h * x)
+        zipped.fold(0 as Value,
+                    |y, (&maybe_x, h)| {
+                        let x = match maybe_x { Some(x) => x, None => 0 as Value };
+                        y + h * x})
     }
 }
 
@@ -38,22 +71,13 @@ impl<'a> Fir<'a> {
 impl<'a> Iterator for Fir<'a> {
     type Item = Value;
     fn next(&mut self) -> Option<Value> {
-        match self.input.next() {
-            None if self.delay.iter().filter(|&i| *i != 0.).collect::<Vec<&Value>>().is_empty() => None,
-            None => {
-                self.delay.push_front(0.);
-                let y = Fir::filter(self.h.iter(), self.delay.iter());
-                self.delay.pop_back();
-                Some(y)
-            },
-            Some(x) => {
-                self.delay.push_front(x);
-                let y = Fir::filter(self.h.iter(), self.delay.iter());
-                if self.delay.len() >= self.order {
-                    self.delay.pop_back();
-                }
-                Some(y)
-            }
+        let x = self.input.next();
+        self.delay.push(x);
+        if self.delay.is_empty() {
+            None
+        }
+        else {
+            Some(Fir::filter(self.h.iter(), self.delay.iter()))
         }
     }
 }
@@ -65,7 +89,7 @@ fn main() {
     let data : Vec<Value> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let mut xs = data.into_iter(); // Use into_iter instead of iter so that we take ownership of the evctor
     let mut x2s = Fir::new(vec![0.5, 0.5], &mut xs);
-    let ys = Fir::new(vec![1.], &mut x2s);
+    let ys = Fir::new(vec![0., 1.], &mut x2s);
 
     for y in ys {
         println!("{}", y);
