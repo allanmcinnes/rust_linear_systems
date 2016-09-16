@@ -1,35 +1,45 @@
-
+//! A Finite Impulse Response (FIR) filter
 use super::signal;
 use super::delay;
 
-/// Contains the coefficients and data structures necessary to realize
-/// an FIR filter.
+/// FIR filter coefficients and state
 pub struct Fir<'a> {
     /// Filter coefficients (impulse response)
-    h : Vec<signal::Value>,
+    h: Vec<signal::Value>,
     /// Filter delay line--stores previous input values for use in calculating the
     /// current output
-    delay: delay::DelayLine,
+    delay: delay::Delay,
     /// Filter input signal
-    input : &'a mut Iterator<Item=signal::Value> // Must be mutable to be able to call `next`
+    input: &'a mut signal::Signal<'a>, // Must be mutable to be able to call `next`
 }
 
 impl<'a> Fir<'a> {
     /// Constructs an FIR filter with the specified coefficients (`h`), operating on the input
     /// signal `signal`
-    pub fn new<Signal: Iterator<Item=signal::Value>>(h : Vec<signal::Value>, signal: &'a mut Signal) -> Fir<'a> {
+    pub fn new(h: Vec<signal::Value>, signal: &'a mut signal::Signal<'a>) -> Fir<'a> {
         let size = h.len();
-        Fir { h: h, delay: delay::DelayLine::new(size), input: signal }
+        Fir {
+            h: h,
+            delay: delay::Delay::new(size),
+            input: signal,
+        }
     }
+
+    // TODO: add output signal accessor that returns filter iterator
 
     /// Computes a filter output for a given state and coefficient set
     fn filter<H, D>(h: H, d: D) -> signal::Value
-        where H: Iterator<Item=&'a signal::Value>, D: Iterator<Item=&'a Option<signal::Value>>  {
-        let zipped = d.zip(h);
-        zipped.fold(0 as signal::Value,
-                    |y, (&maybe_x, h)| {
-                        let x = match maybe_x { Some(x) => x, None => 0 as signal::Value };
-                        y + h * x})
+        where H: Iterator<Item = &'a signal::Value>,
+              D: Iterator<Item = &'a Option<signal::Value>>
+    {
+        let zipped = h.zip(d);
+        zipped.fold(0 as signal::Value, |y, (h, &maybe_x)| {
+            let x = match maybe_x {
+                Some(x) => x,
+                None => 0 as signal::Value,
+            };
+            y + (h * x)
+        })
     }
 }
 
@@ -41,8 +51,7 @@ impl<'a> Iterator for Fir<'a> {
         self.delay.push(x);
         if self.delay.is_empty() {
             None
-        }
-        else {
+        } else {
             Some(Fir::filter(self.h.iter(), self.delay.iter()))
         }
     }
