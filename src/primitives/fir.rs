@@ -8,7 +8,7 @@ pub struct Fir<'a> {
     h: Vec<signal::Value>,
     /// Filter delay line--stores previous input values for use in calculating the
     /// current output
-    delay: delay::Delay,
+    delay: delay::Delay<signal::Value>,
     /// Filter input signal
     input: &'a mut signal::Signal<'a>, // Must be mutable to be able to call `next`
 }

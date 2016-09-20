@@ -1,5 +1,7 @@
 
+
 pub type Value = f32;
+
 
 // TODO: make signal return an iterator instead of implement iterator?
 pub struct Signal<'a> {
