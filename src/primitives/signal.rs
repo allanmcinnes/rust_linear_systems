@@ -1,11 +1,7 @@
-
-
 pub type Value = f32;
 
-
-// TODO: make signal return an iterator instead of implement iterator?
 pub struct Signal<'a> {
-    values: &'a mut Iterator<Item = Value>, // Must be mutable to be able to call `next`
+    values: &'a mut dyn Iterator<Item = Value>, // Must be mutable to be able to call `next`
 }
 
 impl<'a> Signal<'a> {
@@ -14,7 +10,6 @@ impl<'a> Signal<'a> {
     }
 }
 
-/// The filter output is an iterator that can be treated as an input signal to other filters
 impl<'a> Iterator for Signal<'a> {
     type Item = Value;
     fn next(&mut self) -> Option<Value> {
