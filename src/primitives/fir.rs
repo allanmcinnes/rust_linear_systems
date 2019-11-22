@@ -1,6 +1,6 @@
 //! A Finite Impulse Response (FIR) filter
-use super::signal;
 use super::delay;
+use super::signal;
 
 /// FIR filter coefficients and state
 pub struct Fir<'a> {
@@ -19,18 +19,22 @@ impl<'a> Fir<'a> {
     pub fn new(h: Vec<signal::Value>, signal: &'a mut signal::Signal<'a>) -> Fir<'a> {
         let size = h.len();
         Fir {
-            h: h,
+            h,
             delay: delay::Delay::new(size),
             input: signal,
         }
     }
 
-    // TODO: add output signal accessor that returns filter iterator
+    /// Return the filter output signal
+    pub fn output(&mut self) -> signal::Signal {
+        signal::Signal::new(self)
+    }
 
     /// Computes a filter output for a given state and coefficient set
     fn filter<H, D>(h: H, d: D) -> signal::Value
-        where H: Iterator<Item = &'a signal::Value>,
-              D: Iterator<Item = &'a Option<signal::Value>>
+    where
+        H: Iterator<Item = &'a signal::Value>,
+        D: Iterator<Item = &'a Option<signal::Value>>,
     {
         let zipped = h.zip(d);
         zipped.fold(0 as signal::Value, |y, (h, &maybe_x)| {
